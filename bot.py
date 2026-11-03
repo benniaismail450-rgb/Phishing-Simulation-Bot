@@ -113,6 +113,7 @@ if __name__ == "__main__":
     if RENDER_URL:
         bot.remove_webhook()
         bot.set_webhook(url=f"{RENDER_URL}/{TELEGRAM_BOT_TOKEN}")
+        print(f"Webhook set to: {RENDER_URL}/{TELEGRAM_BOT_TOKEN}")
         
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
